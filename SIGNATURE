@@ -1,0 +1,54 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.41.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It will check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 312696ddaef0a92abbc5cdabba21f1d61dfcfdfe Changes
+SHA1 8874cf5c0cad0fb3e9c55f330dd8015f7f1b4fd5 MANIFEST
+SHA1 c104997c8540f5a70df7eb19fbeccc25cd28e52c META.yml
+SHA1 02216b1de32ef2ce8d7ce9884999139c3bfe5a82 Makefile.PL
+SHA1 b869e879a475944a63dbda5ada3967ee47331e21 examples/demo_clear.pl
+SHA1 5209ccc9b2f4058c7da5f5c168d7e4e66f34ce73 examples/demo_cmdline.pl
+SHA1 a183c6e5b5d03fab9d44ccf7525f4ca0e01fe1fe examples/demo_data.pl
+SHA1 b954e5b0b0301f0beab53f0a3521de80e895c07e examples/demo_default.pl
+SHA1 6a455be8a7de4bdccd92e46cd9b22fbf734aaf03 examples/demo_hand.pl
+SHA1 d94878d05f5ef665da68444f3b52bbc1bff9e3d8 examples/demo_interactive.pl
+SHA1 be94c58f5b7f5b1bcc8f4a5b1199ae54b20b7153 examples/demo_lingua.pl
+SHA1 4408ee50c4cfa379240e9d97b70107c0c840c0bb examples/demo_nonl.pl
+SHA1 9eae5754f576ac9123769a53cbb632f739a71bf3 examples/demo_num.pl
+SHA1 521fb2fe8974ffd6d2a07b2617447ee3b3f1bb70 examples/demo_passwd.pl
+SHA1 bafecf9bcfcfddc5b8632b8d9aeae6018547d645 examples/demo_record.pl
+SHA1 af55b0dab3351693e8b7b7b01884f32d25cacd94 examples/demo_require.pl
+SHA1 49b3d585a3b00dee6ba0342fecce768093420d68 examples/demo_to.pl
+SHA1 31232c90fbc22f46970b9f76fd2d70d7ba3aeda4 examples/demo_tty.pl
+SHA1 ae171e0a2a955185512c2f67ce868b1f71a6e4f8 examples/demo_underscore.pl
+SHA1 629c8a42ad99e233c067682a1f90dba61d8656ba examples/demo_while_until.pl
+SHA1 5cb5d31d27490c6d7b5a89044dc74720f48e469c examples/demo_yesno.pl
+SHA1 b26ac27e5a57677aa210c0e908b28ff3ba28f03b inc/Module/Install.pm
+SHA1 fd56d5c793014bccac2cd1e61926c4da8538ef99 inc/Module/Install/Base.pm
+SHA1 9ce6768a7b8f7032ec89594b773fafd58c6feb1d inc/Module/Install/Can.pm
+SHA1 b6c8f0f22c4c8ba48a7bac2c5e4bd61803a7b097 inc/Module/Install/Fetch.pm
+SHA1 aabcd47178e4e7b27e340ff5273269c93697c9c1 inc/Module/Install/Makefile.pm
+SHA1 207dfa13341a374fc78325fbeb99bc36659aef2d inc/Module/Install/Metadata.pm
+SHA1 aff9341a15c04faec47089851e43d9d4061337e7 inc/Module/Install/Win32.pm
+SHA1 8e0d347ca21bc18b380d9d1aa5910b8d078a76b7 inc/Module/Install/WriteAll.pm
+SHA1 d8c3e3883c5dbfd764ff9bfb559d1891452d832d lib/IO/Prompt.pm
+SHA1 9df30aeb2dbf45f8e82bf2546522c5e4fd60f40f t/1-basic.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.3 (FreeBSD)
+
+iD8DBQFBWJJgtLPdNzw1AaARAizmAJ9gXuoEaQ3B3ergu0u4iMK9ZQ4lmgCffN8z
+QwRx8VgnM6eLVtIzSjxGbRs=
+=JZH+
+-----END PGP SIGNATURE-----
