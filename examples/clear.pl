@@ -3,12 +3,11 @@
 use IO::Prompt;
 
 if (prompt -wipefirst, "first> ", -line) {
-	print;
+    print;
 }
-
 
 # Should not wipe screen, since previous call already did...
 
 while (prompt -wipefirst, " next> ", -line) {
-	print;
+    print;
 }

@@ -4,6 +4,6 @@
 
 use IO::Prompt;
 
-prompt "type something: ", -nl=>'';
+prompt "type something: ", -nl => '';
 
-prompt " and something else -->", -newline=>"<--\n";
+prompt " and something else -->", -newline => "<--\n";

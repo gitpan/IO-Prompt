@@ -1,4 +1,10 @@
 ----------------------------------------------------------------------
+r8262:  autrijus | 2004-09-27T22:26:59.468275Z
+
+* This be 0.02.
+* Rename and tidy up the examples/ directory.
+* Properly register dependency on Term::ReadKey.
+----------------------------------------------------------------------
 r8261:  autrijus | 2004-09-27T22:21:05.602546Z
 
 * This be 0.01, first CPAN release.

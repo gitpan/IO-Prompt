@@ -10,17 +10,18 @@ open my $fh, '>/dev/null' or die $!;
 
 print "No prompt should appear here... (type anything)\n";
 if (prompt $fh, "> ", -line) {
-	print;
+    print;
 }
 
 if (prompt \*STDERR, "type some more> ", -line) {
-	print;
+    print;
 }
 
 use IO::File;
 $fh = new IO::File, "<$0" or die $!;
 
-print "This should fail at line ", __LINE__+1, " (read-only filehandle)...\n";
+print "This should fail at line ", __LINE__ + 1,
+  " (read-only filehandle)...\n";
 if (prompt $fh, "> ", -line) {
-	print;
+    print;
 }

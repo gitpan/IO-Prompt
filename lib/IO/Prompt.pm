@@ -4,7 +4,7 @@ use 5.008;
 use strict;
 no warnings 'utf8';
 
-our $VERSION   = '0.01';
+our $VERSION   = '0.02';
 our @EXPORT    = qw( prompt );
 our @EXPORT_OK = qw( hand_print get_input );
 
@@ -511,7 +511,7 @@ IO::Prompt - Interactively prompt for user input
 
 =head1 VERSION
 
-This document describes version 0.01 of IO::Prompt, released
+This document describes version 0.02 of IO::Prompt, released
 September 28, 2004.
 
 =head1 SYNOPSIS

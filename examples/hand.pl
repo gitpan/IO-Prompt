@@ -6,6 +6,5 @@
 use IO::Prompt 'hand_print';
 
 hand_print "Now is the winter of\n";
-hand_print {-speed=>0.25}, "our discontent made ",
-           {-speed=>0.5},  "glorious\n",
-	       {-speed=>0.15}, "summmer by this son of York\n"
+hand_print { -speed => 0.25 }, "our discontent made ", { -speed => 0.5 },
+  "glorious\n", { -speed => 0.15 }, "summmer by this son of York\n"

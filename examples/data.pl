@@ -7,7 +7,7 @@ use IO::Prompt;
 # Useful for pretending to type without bothering with the keyboard.
 #
 # Hitting any other key immediately after the prompt will put you into
-# "smart typing" mode: the next __PROMPT__ line will be typed in 
+# "smart typing" mode: the next __PROMPT__ line will be typed in
 # for you, one letter for every key you hit (no matter what key you hit)
 # Useful for pretending to type without looking at the keyboard.
 #
@@ -21,18 +21,17 @@ use IO::Prompt;
 #
 
 while (prompt -line, "\nNext line: ") {
-	print "Input was: $_";
-	while (<DATA>) {
-		print "Datum was: $_";
-		last;
-	}
+    print "Input was: $_";
+    while (<DATA>) {
+        print "Datum was: $_";
+        last;
+    }
 }
 
 print "\n";
 while (<DATA>) {
-	print "Datum was: $_";
+    print "Datum was: $_";
 }
-
 
 __DATA__
 This is data line 1

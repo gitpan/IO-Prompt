@@ -5,5 +5,5 @@
 use IO::Prompt;
 
 while (prompt "next: ") {
-	print "You said '$_'\n";
+    print "You said '$_'\n";
 }

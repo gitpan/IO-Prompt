@@ -1,11 +1,12 @@
 name: IO-Prompt
-version: 0.01
+version: 0.02
 abstract: Interactively prompt for user input
 author: Damian Conway <dconway@cpan.org>
 license: perl
 distribution_type: module
 requires:
   perl: 5.8.0
+  Term::ReadKey: 0
 no_index:
   directory:
     - inc

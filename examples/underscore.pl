@@ -16,14 +16,14 @@ print "Got: [$_]\n";
 
 # Case 3...
 while (prompt "3> ") {
-	print defined() ? "(\$ was '$_')\n" : "(\$_ was undef)\n";
-	print "Got: [$_]\n";
-	last if $_ ne "\n";
+    print defined() ? "(\$ was '$_')\n" : "(\$_ was undef)\n";
+    print "Got: [$_]\n";
+    last if $_ ne "\n";
 }
 
 # Case 4...
 while (my $next = prompt "4> ") {
-	print defined() ? "(\$ was '$_')\n" : "(\$_ was undef)\n";
-	print "Got: $next\n";
-	last if $next ne "\n";
+    print defined() ? "(\$ was '$_')\n" : "(\$_ was undef)\n";
+    print "Got: $next\n";
+    last if $next ne "\n";
 }
