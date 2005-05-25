@@ -1,16 +1,20 @@
-#!/usr/bin/env perl
+use strict;
+use warnings;
+use ExtUtils::MakeMaker;
 
-use inc::Module::Install;
-
-name		('IO-Prompt');
-author		('Damian Conway <dconway@cpan.org>');
-abstract	('Interactively prompt for user input');
-license		('perl');
-version_from	('lib/IO/Prompt.pm');
-
-requires        (
-    perl            => 5.008,
-    'Term::ReadKey' => 0,
+WriteMakefile(
+    NAME                => 'IO::Prompt',
+    AUTHOR              => 'Damian Conway <DCONWAY@cpan.org>',
+    VERSION_FROM        => 'lib/IO/Prompt.pm',
+    ABSTRACT_FROM       => 'lib/IO/Prompt.pm',
+    PL_FILES            => {},
+    PREREQ_PM => {
+        'Test::More' => 0,
+        'version'    => 0,
+        'IO::Handle'    => 0,
+        'Term::ReadKey' => 0,
+        'POSIX' => 0,
+    },
+    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    clean               => { FILES => 'IO-Prompt-*' },
 );
-
-WriteAll( sign => 1 );

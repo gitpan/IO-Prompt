@@ -1,14 +1,19 @@
+#       get_input
+#       hand_print
+
 package IO::Prompt;
 
-use 5.008;
+use version; $VERSION = qv('0.99.1');
+
 use strict;
+use Carp;
+
+use 5.008;
 no warnings 'utf8';
 
-our $VERSION   = '0.02';
 our @EXPORT    = qw( prompt );
 our @EXPORT_OK = qw( hand_print get_input );
 
-use Carp;
 use IO::Handle;
 use Term::ReadKey;
 use POSIX qw( isprint );
@@ -16,7 +21,7 @@ use POSIX qw( isprint );
 my $clearfirst;
 my %input;
 
-sub clear {
+sub _clear {
     return unless $_[0];
     open my $OUT, ">/dev/tty" or croak "Cannot write to terminal: $!";
     print {$OUT} "\n" x 60;
@@ -32,6 +37,12 @@ our %flags_arg = (
     u  => 'until',
     w  => 'while',
     nl => 'newline',
+    m  => 'menu',
+);
+
+our %flags_alias = (
+    '-okay_if' => '-while',
+    '-fail_if' => '-until',
 );
 
 our %flags_noarg = (
@@ -39,7 +50,7 @@ our %flags_noarg = (
     n   => 'no',
     i   => 'integer',
     num => 'number',
-    1   => 'onechar',
+    1   => 'one_char',
     w   => 'wipe',
     a   => 'argv',
     l   => 'line',
@@ -69,9 +80,10 @@ my %num_pat = (
     number  => qr{[+-]? (?:\d+[.]?\d* | [.]\d+) (?:[Ee][+-]?\d+)? }x,
 );
 
-sub get_prompt (\%@) {
+sub _get_prompt (\%@) {
     my ($flags, @data) = @_;
     my ($OUT);
+    @data = map { $flags_alias{$_} || $_ } @data;
     for (my $i = 0 ; $i < @data ; $i++) {
         local *_ = \($data[$i]);
         if (ref eq 'HASH') {
@@ -103,7 +115,9 @@ sub get_prompt (\%@) {
                 $flags->{-yesno}{no} = $nopat{ substr $1, 0, 1 };
                 $flags->{-yesno}{noprompt} = substr $1, 0, 1;
             }
-            elsif (s/^-($flag_with_arg)/-/) {
+            elsif (m/^-($flag_with_arg)/) {
+                croak "Missing argument for $_ option" if @data < $i+2;
+                s/^-($flag_with_arg)/-/;
                 $flags->{ -$flags_arg{$1} } = $data[ $i + 1 ];
                 undef $data[ $i++ ];
             }
@@ -112,7 +126,7 @@ sub get_prompt (\%@) {
             }
             else { croak "Unknown flag ($_) in prompt" }
 
-            redo if /^-./;
+            redo if defined $_ && /^-./;
         }
         else { next }
         undef $data[$i];
@@ -121,7 +135,7 @@ sub get_prompt (\%@) {
         !defined() ? undef
       : ref eq 'Regexp' ? $_
       : qr/^\Q$_\E$/
-      for @{$flags}{qw(-while -until)};
+      for @{$flags}{qw(-while -until -fail_if -okay_if)};
 
     for (grep { defined } $flags->{ -require }) {
         croak "Argument to -require must be hash reference"
@@ -130,7 +144,7 @@ sub get_prompt (\%@) {
         $_ = sub {
             my ($input) = @_;
             for (keys %reqs) {
-                return $_ unless smartmatch($input, $reqs{$_});
+                return $_ unless _smartmatch($input, $reqs{$_});
             }
             return;
         };
@@ -149,7 +163,7 @@ my $prompt_req = "(The value entered is not acceptable) ";
 sub prompt {
     my $caller = caller;
     my %flags;
-    my ($OUT, @prompt) = get_prompt(%flags, @_);
+    my ($OUT, @prompt) = _get_prompt(%flags, @_);
     open $OUT, ">/dev/tty" or croak "Cannot write to terminal: $!" if !$OUT;
     $OUT->autoflush(1);
     @prompt = $flags{ -prompt } if !@prompt and $flags{ -prompt };
@@ -169,10 +183,10 @@ sub prompt {
     }
     $flags{-speed} = 0.075 unless defined $flags{-speed};
     $clearfirst = 1 if !defined($clearfirst) && $flags{-clearfirst};
-    clear($flags{ -clear } || $clearfirst);
+    _clear($flags{ -clear } || $clearfirst);
     my $input;
     if (-t $IN and exists $input{$caller}) {
-        $input = fake_from_DATA($caller, $IN, $OUT, \%flags, @prompt);
+        $input = _fake_from_DATA($caller, $IN, $OUT, \%flags, @prompt);
     }
     elsif ($flags{-argv}) {
         return if @ARGV;
@@ -182,19 +196,22 @@ sub prompt {
         return @ARGV;
     }
     elsif ($flags{-yesno}) {
-        return yesno($IN, $OUT, \%flags, @prompt);
+        return _yesno($IN, $OUT, \%flags, @prompt);
     }
     elsif ($flags{-number}) {
-        return number($IN, $OUT, \%flags, @prompt);
+        return _number($IN, $OUT, \%flags, @prompt);
+    }
+    elsif ($flags{-menu}) {
+        return _menu($IN, $OUT, \%flags, @prompt);
     }
     else {
         print {$OUT} @prompt;
         $input = get_input($IN, $OUT, \%flags, @prompt);
     }
-    return tidy($input, %flags);
+    return _tidy($input, %flags);
 }
 
-sub tidy {
+sub _tidy {
     my ($input, %flags) = @_;
     my $defined = defined $input;
     chomp $input if $defined && !$flags{-line};
@@ -211,7 +228,7 @@ sub tidy {
       'IO::Prompt::ReturnVal';
 }
 
-sub success {
+sub _success {
     my ($val, $no_set) = @_;
     print {$RECORD} $val, "\n" if $val && $RECORD;
     return bless {
@@ -223,7 +240,7 @@ sub success {
       'IO::Prompt::ReturnVal';
 }
 
-sub failure {
+sub _failure {
     return bless {
         value   => $_[0],
         success => 0,
@@ -248,7 +265,10 @@ sub import {
 
     @_ = grep /^-/, @_;
     $input{ caller() } = undef;
-    $clearfirst = 1 and return if "@_" eq "-clearfirst";
+    if ("@_" eq "-clearfirst") {
+        $clearfirst = 1;
+        return;
+    }
     for my $i (0 .. $#_) {
         last if $RECORD;
         if ($_[$i] eq '-record') {
@@ -285,9 +305,18 @@ CHECK {
 
 my $baseline = ord 'A';
 
+sub _visualize {
+    local ($_) = @_;
+    return isprint($_)         ? $_
+         : $_ eq "\n"          ? $_
+         : ord($_) == 0        ? ''
+         : ord($_) < $baseline ? '^' . chr($baseline + ord($_) - 1)
+         :                       '?'
+}
+
 sub hand_print {
     my $OUT   = \*STDOUT;
-    my $echo  = 0;
+    my $echo  = undef;
     my $speed = 0.05;
     local $| = 1;
     for (@_) {
@@ -301,27 +330,20 @@ sub hand_print {
         }
         else {
             print {$OUT} $_ and select undef, undef, undef, rand $speed
-              for map {
-                    defined $echo ? $echo
-                  : isprint($_)   ? $_
-                  : $_ eq "\n" ? $_
-                  : ord($_) == 0        ? ''
-                  : ord($_) < $baseline ? '^' . chr($baseline + ord($_) - 1)
-                  : '?'
-              } split "";
+              for map { defined $echo ? $echo : _visualize($_) } split "";
         }
     }
     return scalar @_;
 }
 
-sub fake_from_DATA {
+sub _fake_from_DATA {
     my ($caller, $IN, $OUT, $flags, @prompt) = @_;
     local $SIG{INT} = sub { ReadMode 'restore', $IN; exit };
     ReadMode 'noecho', $IN;
     ReadMode 'raw',    $IN;
     print {$OUT} @prompt;
     my $input = getc $IN;
-    unless (defined $input) { print {$OUT} "\n"; return; }
+    if ($input =~ /\cD|\cZ/) { print {$OUT} _visualize($input),"\n"; return; }
     if ($input eq "\e") {
         ReadMode 'restore', $IN;
         return get_input($IN, $OUT, $flags, @prompt);
@@ -353,11 +375,11 @@ sub fake_from_DATA {
 
 sub get_input {
     my ($IN,      $OUT,   $flags, @prompt)  = @_;
-    my ($onechar, $nlstr, $echo,  $require) =
-      @{$flags}{ -onechar, -nlstr, -echo, -'require' };
+    my ($one_char, $nlstr, $echo,  $require) =
+      @{$flags}{ -one_char, -nlstr, -echo, -'require' };
     $nlstr = "\n" unless defined $nlstr;
     if (!-t $IN) {
-        return scalar <$IN> unless $onechar;
+        return scalar <$IN> unless $one_char;
         return getc $IN;
     }
     $OUT->autoflush(1);
@@ -386,14 +408,15 @@ sub get_input {
             $input .= $next;
             if ($next eq "\n") {
                 if ($input eq "\n" && exists $flags->{-default}) {
-                    print {$OUT}(
-                        defined $echo
-                        ? $echo x length($flags->{-default})
-                        : $flags->{-default}
+                    print {$OUT} (
+                         defined $echo
+                         && $flags->{-menu} ? $echo
+                       : defined $echo      ? $echo x length($flags->{-default})
+                       :                      '['.$flags->{-default}.']'
                     );
                     print {$OUT} $nlstr;
                     ReadMode 'restore', $IN;
-                    return $onechar ? substr($_, 0, 1) : $_
+                    return $one_char ? substr($_, 0, 1) : $_
                       for $flags->{-default};
                 }
                 $newlines .= $nlstr;
@@ -405,7 +428,7 @@ sub get_input {
         else {
             $input .= $next;
         }
-        if ($onechar or !defined $next or $input =~ m{\Q$/\E$}) {
+        if ($one_char or !defined $next or $input =~ m{\Q$/\E$}) {
             chomp $input unless $flags->{-line};
             if ($require and my $mesg = $require->($input)) {
                 print {$OUT} "\r", " " x 79, "\r", sprintf($mesg, @prompt);
@@ -415,13 +438,13 @@ sub get_input {
             else {
                 ReadMode 'restore', $IN;
                 print {$OUT} $newlines;
-                return $onechar ? substr($input, 0, 1) : $input;
+                return $one_char ? substr($input, 0, 1) : $input;
             }
         }
     }
 }
 
-sub yesno {
+sub _yesno {
     my ($IN,  $OUT, $flags,     @prompt)   = @_;
     my ($yes, $no,  $yesprompt, $noprompt) =
       @{ $flags->{ -yesno } }{qw(yes no yesprompt noprompt)};
@@ -436,10 +459,10 @@ sub yesno {
         my $response =
           get_input($IN, $OUT, { %$flags, -nlstr => "" }, @prompt);
         chomp $response unless $flags->{-line};
-        print {$OUT} "\n" and return success($response, 'no_set')
+        print {$OUT} "\n" and return _success($response, 'no_set')
           if defined $response
           and $response =~ /$yes/;
-        print {$OUT} "\n" and return failure($response)
+        print {$OUT} "\n" and return _failure($response)
           if !defined $response
           or $response =~ /$no/;
         print {$OUT} "\r", " " x 79, "\r", @prompt,
@@ -448,7 +471,7 @@ sub yesno {
     }
 }
 
-sub number {
+sub _number {
     my ($IN, $OUT, $flags, @prompt) = @_;
     my $numtype    = $flags->{ -number };
     my $prompt_num = "(Please enter a valid $numtype) ";
@@ -470,17 +493,83 @@ sub number {
                 next;
             }
         }
-        print {$OUT} "\n" and return tidy($response);
+        print {$OUT} "\n" and return _tidy($response);
     }
 }
 
-sub smartmatch {
+sub _self { $_[0] }
+
+sub _menu {
+    my ($IN, $OUT, $flags, @prompt) = @_;
+    my $datatype   = ref $flags->{ -menu };
+    my @data = $datatype eq 'ARRAY'  ? @{ $flags->{ -menu } }
+             : $datatype eq 'HASH'   ? sort keys %{ $flags->{ -menu } }
+             : croak "Argument to -menu must be hash or array reference";
+
+    my $val_for = $datatype eq 'ARRAY' 
+                    ? \&_self
+                    : sub { $flags->{ -menu }{$_[0]} };
+
+    my $count = @data;
+
+    croak "Too many -menu items" if $count > 26;
+    croak "Too few -menu items"  if $count < 1;
+
+    my $max_char = chr(ord('a') + $count - 1);
+    my $menu = q{};
+
+    my $default_key;
+    my $next = 'a';
+    for (@data) {
+        my $item = $_;
+        if (defined $flags->{ -default } && !defined $default_key && $item eq $flags->{ -default }) {
+            $default_key = $next;
+        }
+        $item =~ s/\A/qq{     }.$next++.q{. }/xmse;
+        $item =~ s/\n?\z/\n/xms;
+        $item =~ s/(?!\Z)\n/\n        /gxms;
+        $menu .= $item;
+    }
+
+    push @prompt, "\n$menu\n> ";
+
+    my $prompt_range = "(Please enter a-$max_char) > ";
+    my $require    = $flags->{ -require };
+    print {$OUT} @prompt if -t $IN;
+    while (1) {
+        my $response =
+          get_input($IN, $OUT, { %$flags, -nlstr => "", -require => undef },
+            @prompt);
+        chomp $response;
+        if (-t $IN and defined $response) {
+                
+            if (length $response > 1 || ($response lt 'a' || $response gt $max_char) ) {
+                if ($response ne $flags->{-default}) {
+                    print {$OUT} "\r", " " x 79, "\r", $prompt_range;
+                    next;
+                }
+                $response = $default_key;
+            }
+            elsif ($require and my $mesg = $require->($data[ord($response)-ord('a')])) {
+                print {$OUT} "\r", " " x 79, "\r", sprintf($mesg, @prompt);
+                next;
+            }
+        }
+        print {$OUT} "\n";
+        return _tidy(
+              defined $response ? $val_for->($data[ord($response)-ord('a')])
+            :                     $response
+        );
+    }
+}
+
+sub _smartmatch {
     my ($str, $matcher) = @_;
     my $type = ref $matcher;
     my $res = $type eq 'CODE'
       ? do { local $_ = $str; $matcher->() }
       : $type eq 'Regexp' ? ($str =~ $matcher)
-      : $type eq 'ARRAY' ? scalar grep({ smartmatch($str, $_) } @$matcher)
+      : $type eq 'ARRAY' ? scalar grep({ _smartmatch($str, $_) } @$matcher)
       : $type eq 'HASH' ? $matcher->{$str}
       : $str eq $matcher;
     return $res;
@@ -502,17 +591,17 @@ sub DESTROY {
     $_ = $_[0]{value} unless $_[0]{handled};
 }
 
-1;
+1; # Magic true value required at end of module
 __END__
 
 =head1 NAME
 
 IO::Prompt - Interactively prompt for user input
 
+
 =head1 VERSION
 
-This document describes version 0.02 of IO::Prompt, released
-September 28, 2004.
+This document describes IO::Prompt version 0.99.1
 
 =head1 SYNOPSIS
 
@@ -534,10 +623,17 @@ Two other functions are exported at request: C<hand_print>, which simulates
 hand-typing to the console; and C<get_input>, which is the lower-level function
 that actually prompts the user for a suitable input.
 
-Please consult the F<examples> directory from this module's CPAN distribution
-to better understand how to make use of this module.
+Note that this is an interim re-release. A full release with better
+documentation will follow in the near future. Meanwhile, please consult
+the F<examples> directory from this module's CPAN distribution to better
+understand how to make use of this module.
+  
+=head1 INTERFACE 
 
 =head2 Arguments to C<prompt>
+
+Any argument not of the following forms is treated as part of the text of the
+prompt itself.
 
  Flag   Long form      Arg          Effect
  ----   ---------      ---          ------
@@ -569,9 +665,15 @@ to better understand how to make use of this module.
                                      - Hashes must return true for input as key
 
  -u     -until         <str|rgx>    Fail if input matches <str|regex>
- -w     -while         <str|rgx>    Fail unless input matches <str|regex>
+ -u     -fail_if       <str|rgx>    Fail if input matches <str|regex>
 
- -1     -onechar                    Return immediately after first char typed
+ -w     -while         <str|rgx>    Fail unless input matches <str|regex>
+ -w     -okay_if       <str|rgx>    Fail unless input matches <str|regex>
+
+ -m     -menu          <list|hash>  Show the data specified as a menu 
+                                    and allow one to be selected
+
+ -1     -one_char                   Return immediately after first char typed
 
  -w     -wipe                       Clear screen before prompt
  -f     -wipefirst                  Clear screen before first prompt only
@@ -592,24 +694,167 @@ to better understand how to make use of this module.
 
 Flags can be "cuddled". For example:
 
-     prompt("next: ", -tyn1s=>0.2)   # -tty, -yes, -no, -onechar, -speed=>0.2
+     prompt("next: ", -tyn1s=>0.2)   # -tty, -yes, -no, -one_char, -speed=>0.2
 
-=head1 CAVEATS
+=head2 "Hand-written" printing via C<hand_print()>
 
-Currently, there are no meaningful tests and documentation for this module.
-Contributions will be very much appreciated.
+The C<hand_print()> subroutine takes a string and prints it out in the
+stop-and-start manner of hand-typed text.
+
+=head2 Low-level input retrieval via C<get_input()>
+
+The C<get_input()> subroutine is a low-level utility subroutine that
+takes an input filehandle, an output filehandle, a reference to a hash
+of options (as listed for C<prompt()>, above) and a single prompt
+string. It prints the prompt and retreives the input. You almost
+certainly want to use C<prompt()> instead.
+
+
+
+=head1 DIAGNOSTICS
+
+=over
+
+=item C<< Can't write prompt to read-only $_ >>
+
+You specified a filehandle to which the prompt should be written, but
+that filehandle was not writeable. Did you pass the wrong filehandle, or
+open it in the wrong mode?
+
+=item C<< Missing argument for %s option >>
+
+The flag you specified takes an argument, but you didn't provide that
+argument.
+
+=item C<< Unknown flag ($s) in prompt >>
+
+The flag you specified wasn't one of those that C<prompt()> understands. Did
+you misspell it, perhaps?
+
+=item C<< Argument to -require must be hash reference >>
+
+The C<-require> option takes a single argument that is a hash. You tried to
+pass it something else. Try a hash instead.
+
+=item C<< Cannot write to terminal: %s >>
+
+=item C<< Cannot read from terminal: %s >>
+
+C<prompt()> attempted to access the terminal but couldn't. This may mean your
+environment has no C</dev/tty> available, in which case there isn't much you
+can do with this module. Sorry.
+
+=item C<< Can't open %s: %s >>
+
+C<prompt()> tried to read input via C<*ARGV> from a file specified on the
+command-line, but the file couldn't be opened for the reason shown. This is
+usually either a permission problem, a non-existent file, or a mistyped
+filepath.
+
+ 
+=item C<< Argument to -menu must be hash or array reference >>
+
+The C<-menu> option requires an argument that is either an array:
+
+    prompt -menu=>['yes', 'no', 'maybe'];
+
+or a hash:
+
+    prompt -menu=>{yes=>1, no=>0, maybe=>0.5};
+
+=item C<< Too many -menu items >>
+
+=item C<< Too few -menu items >>
+
+A menu can't have fewer than 1 or more than 26 items.
+
+=back
+
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+IO::Prompt requires no configuration files or environment variables.
+
+
+=head1 DEPENDENCIES
+
+IO::Prompt requires the following modules:
+
+=over
+
+=item *
+
+version
+
+=item *
+
+IO::Handle
+
+=item *
+
+Term::ReadKey
+
+=item *
+
+POSIX
+
+=back
+
+
+=head1 INCOMPATIBILITIES
+
+None reported.
+
+
+=head1 BUGS AND LIMITATIONS
+
+No bugs have been reported.
+
+Please report any bugs or feature requests to
+C<bug-io-prompt@rt.cpan.org>, or through the web interface at
+L<http://rt.cpan.org>.
+
+
+=head1 THANKS
+
+My deepest gratitude to Autrijus Tang and Brian Ingerson, who have taken
+care of this module for the past twelve months, while I was off trekking
+in the highlands of Perl 6. Now it's their turn for some mountain air,
+I'll be looking after this module again.
+
 
 =head1 AUTHOR
 
-Damian Conway (damian@conway.org)
+Damian Conway  C<< <DCONWAY@cpan.org> >>
 
-=head1 MAINTAINERS
 
-Autrijus Tang E<lt>autrijus@autrijus.orgE<gt>,
-Brian Ingerson E<lt>INGY@cpan.orgE<gt>.
+=head1 LICENCE AND COPYRIGHT
 
-=head1 COPYRIGHT
+Copyright (c) 2005, Damian Conway C<< <DCONWAY@cpan.org> >>. All rights reserved.
 
-   Copyright (c) 2004, Damian Conway. All Rights Reserved.
- This module is free software. It may be used, redistributed
-     and/or modified under the same terms as Perl itself.
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+
+=head1 DISCLAIMER OF WARRANTY
+
+BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
+OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
+ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
+YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
+NECESSARY SERVICING, REPAIR, OR CORRECTION.
+
+IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENCE, BE
+LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL,
+OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
+THE SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
+RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
+FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
+SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGES.

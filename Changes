@@ -1,12 +1,10 @@
-----------------------------------------------------------------------
-r8262:  autrijus | 2004-09-27T22:26:59.468275Z
+Revision history for IO-Prompt
 
-* This be 0.02.
-* Rename and tidy up the examples/ directory.
-* Properly register dependency on Term::ReadKey.
-----------------------------------------------------------------------
-r8261:  autrijus | 2004-09-27T22:21:05.602546Z
+0.0.1  Tue May 24 21:56:09 2005
+       Initial release.
 
-* This be 0.01, first CPAN release.
-* Added stub tests and documentation.
-----------------------------------------------------------------------
+
+0.99.1  Wed May 25 02:38:58 2005
+
+    - Added -menu option
+
