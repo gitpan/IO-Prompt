@@ -3,7 +3,7 @@
 
 package IO::Prompt;
 
-use version; $VERSION = qv('0.99.1');
+use version; $VERSION = qv('0.99.2');
 
 use strict;
 use Carp;
@@ -162,6 +162,7 @@ my $prompt_req = "(The value entered is not acceptable) ";
 
 sub prompt {
     my $caller = caller;
+
     my %flags;
     my ($OUT, @prompt) = _get_prompt(%flags, @_);
     open $OUT, ">/dev/tty" or croak "Cannot write to terminal: $!" if !$OUT;
@@ -182,10 +183,13 @@ sub prompt {
         @prompt = () unless -t $IN;
     }
     $flags{-speed} = 0.075 unless defined $flags{-speed};
+    use Want qw( want );
+    $flags{-set_underscore} ||= want('BOOL');
+
     $clearfirst = 1 if !defined($clearfirst) && $flags{-clearfirst};
     _clear($flags{ -clear } || $clearfirst);
     my $input;
-    if (-t $IN and exists $input{$caller}) {
+    if (-t $IN and defined $input{$caller}) {
         $input = _fake_from_DATA($caller, $IN, $OUT, \%flags, @prompt);
     }
     elsif ($flags{-argv}) {
@@ -222,7 +226,7 @@ sub _tidy {
     return bless {
         value   => $input,
         success => $success,
-        set_val => 1,
+        set_val => $flags{ -set_underscore },
         context => (caller(1))[2],
       },
       'IO::Prompt::ReturnVal';
@@ -365,7 +369,11 @@ sub _fake_from_DATA {
         while (1) {
             my $done = $i >= length $line;
             print {$OUT} substr($line, $i++, 1) unless $done;
-            last if getc $IN eq "\n" && $done;
+            if (getc $IN eq "\n") {
+                last if $done;
+                hand_print { -to => $OUT, %$flags }, substr($line, $i);
+                $i = length $line;
+            }
         }
     }
     ReadMode 'restore', $IN;
@@ -556,10 +564,12 @@ sub _menu {
             }
         }
         print {$OUT} "\n";
-        return _tidy(
-              defined $response ? $val_for->($data[ord($response)-ord('a')])
-            :                     $response
-        );
+        my $selection = $data[ord($response)-ord('a')];
+        $response = defined $response ? $val_for->($selection) : $response;
+        if (defined $response && ref $response eq 'HASH') {
+            $response = _menu($IN, $OUT, {%{$flags},-menu=>$response}, "$selection: ");
+        }
+        return _tidy($response);
     }
 }
 
@@ -577,15 +587,16 @@ sub _smartmatch {
 
 package IO::Prompt::ReturnVal;
 
-use overload q{bool} => sub {
-    $_ = $_[0]{value} if $_[0]{set_val};
-    $_[0]{handled} = 1;
-    $_[0]{success};
-  },
-  q{""} => sub { $_[0]{handled} = 1; "$_[0]{value}"; },
-  q{0+} => sub { $_[0]{handled} = 1; 0 + $_[0]{value}; },
-  fallback => 1,
-  ;
+use overload
+    q{bool} => sub {
+        $_ = $_[0]{value} if $_[0]{set_val};
+        $_[0]{handled} = 1;
+        $_[0]{success};
+    },
+    q{""} => sub { $_[0]{handled} = 1; "$_[0]{value}"; },
+    q{0+} => sub { $_[0]{handled} = 1; 0 + $_[0]{value}; },
+    fallback => 1,
+    ;
 
 sub DESTROY {
     $_ = $_[0]{value} unless $_[0]{handled};
@@ -601,7 +612,7 @@ IO::Prompt - Interactively prompt for user input
 
 =head1 VERSION
 
-This document describes IO::Prompt version 0.99.1
+This document describes IO::Prompt version 0.99.2
 
 =head1 SYNOPSIS
 

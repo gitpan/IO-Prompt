@@ -1,8 +1,6 @@
 use IO::Prompt;
 
 # This example demostrates how prompt autosets $_ when appropriate
-# (It would be better if it were smarter -- and didn't set $_ -- in case 4)
-#
 
 # Case 1...
 my $first = prompt "1> ";
@@ -16,14 +14,14 @@ print "Got: [$_]\n";
 
 # Case 3...
 while (prompt "3> ") {
-    print defined() ? "(\$ was '$_')\n" : "(\$_ was undef)\n";
+    print defined() ? "(\$_ was '$_')\n" : "(\$_ was undef)\n";
     print "Got: [$_]\n";
     last if $_ ne "\n";
 }
 
 # Case 4...
 while (my $next = prompt "4> ") {
-    print defined() ? "(\$ was '$_')\n" : "(\$_ was undef)\n";
+    print defined() ? "(\$_ was '$_')\n" : "(\$_ was undef)\n";
     print "Got: $next\n";
     last if $next ne "\n";
 }

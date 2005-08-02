@@ -8,3 +8,8 @@ Revision history for IO-Prompt
 
     - Added -menu option
 
+
+
+0.99.2  Mon Aug  1 23:55:45 2005
+
+    - Fixed setting of $_ using Want.pm (thanks Robin!)
