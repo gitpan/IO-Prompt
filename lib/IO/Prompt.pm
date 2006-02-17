@@ -3,7 +3,7 @@
 
 package IO::Prompt;
 
-use version; $VERSION = qv('0.99.2');
+use version; $VERSION = qv('0.99.4');
 
 use strict;
 use Carp;
@@ -41,8 +41,8 @@ our %flags_arg = (
 );
 
 our %flags_alias = (
-    '-okay_if' => '-while',
-    '-fail_if' => '-until',
+    '-okayif' => '-while',
+    '-failif' => '-until',
 );
 
 our %flags_noarg = (
@@ -50,11 +50,13 @@ our %flags_noarg = (
     n   => 'no',
     i   => 'integer',
     num => 'number',
-    1   => 'one_char',
-    w   => 'wipe',
+    1   => 'onechar',
+    c   => 'clear',
+    f   => 'clearfirst',
     a   => 'argv',
     l   => 'line',
-    t   => 'tty'
+    t   => 'tty',
+    x   => 'escape',
 );
 
 my $RECORD;    # store filehandle for __PROMPT__ file supporting -record flag
@@ -93,8 +95,9 @@ sub _get_prompt (\%@) {
             croak "Can't write prompt to read-only $_" unless -w;
             $OUT = $_;
         }
-        elsif (/^-/) {
-            if (s/^-(f|wipefirst)/-/) {
+        elsif (/^-/) {  # a flag
+            s/_//g;
+            if (s/^-(f|clearfirst)/-/) {
                 $clearfirst = 1 unless defined $clearfirst;
             }
             elsif (s/^-(yes|y)/-/i) {
@@ -104,6 +107,9 @@ sub _get_prompt (\%@) {
             elsif (s/^-(?:nl|newline)/-/i) {
                 $flags->{-nlstr} = $data[ $i + 1 ];
                 undef $data[ $i++ ];
+            }
+            elsif (s/^-escape|-x/-/i) {
+                $flags->{-escape} = 1;
             }
             elsif (s/^-number|-num/-/i) {
                 $flags->{-number} = 'number';
@@ -116,10 +122,11 @@ sub _get_prompt (\%@) {
                 $flags->{-yesno}{noprompt} = substr $1, 0, 1;
             }
             elsif (m/^-($flag_with_arg)/) {
-                croak "Missing argument for $_ option" if @data < $i+2;
+                croak "Missing argument for $_ option" if @data < $i+2 
+                                                       || !defined $data[$i+1];
                 s/^-($flag_with_arg)/-/;
-                $flags->{ -$flags_arg{$1} } = $data[ $i + 1 ];
-                undef $data[ $i++ ];
+                $flags->{ -$flags_arg{$1} } = $data[$i+1];
+                undef $data[$i+1];
             }
             elsif (s/^-($flag_no_arg)/-/) {
                 $flags->{ -$flags_noarg{$1} } = 1;
@@ -135,7 +142,7 @@ sub _get_prompt (\%@) {
         !defined() ? undef
       : ref eq 'Regexp' ? $_
       : qr/^\Q$_\E$/
-      for @{$flags}{qw(-while -until -fail_if -okay_if)};
+      for @{$flags}{qw(-while -until -failif -okayif)};
 
     for (grep { defined } $flags->{ -require }) {
         croak "Argument to -require must be hash reference"
@@ -383,11 +390,11 @@ sub _fake_from_DATA {
 
 sub get_input {
     my ($IN,      $OUT,   $flags, @prompt)  = @_;
-    my ($one_char, $nlstr, $echo,  $require) =
-      @{$flags}{ -one_char, -nlstr, -echo, -'require' };
+    my ($onechar, $nlstr, $echo,  $require) =
+      @{$flags}{ -onechar, -nlstr, -echo, -'require' };
     $nlstr = "\n" unless defined $nlstr;
     if (!-t $IN) {
-        return scalar <$IN> unless $one_char;
+        return scalar <$IN> unless $onechar;
         return getc $IN;
     }
     $OUT->autoflush(1);
@@ -396,6 +403,7 @@ sub get_input {
     my %cntl = GetControlChars $IN;
     my $cntl = join '|', values %cntl;
     ReadMode 'raw', $IN;
+
   INPUT: while (1) {
         my $next = getc $IN;
         if ($next eq $cntl{INTERRUPT}) {
@@ -412,6 +420,11 @@ sub get_input {
             close $IN;
             return $input;
         }
+        elsif ($flags->{-escape} && $next eq "\e") {
+            ReadMode 'restore', $IN;
+            print {$OUT} "<esc>";
+            return "\e";
+        }
         elsif ($next !~ /$cntl/ && defined $next) {
             $input .= $next;
             if ($next eq "\n") {
@@ -424,7 +437,7 @@ sub get_input {
                     );
                     print {$OUT} $nlstr;
                     ReadMode 'restore', $IN;
-                    return $one_char ? substr($_, 0, 1) : $_
+                    return $onechar ? substr($_, 0, 1) : $_
                       for $flags->{-default};
                 }
                 $newlines .= $nlstr;
@@ -436,7 +449,7 @@ sub get_input {
         else {
             $input .= $next;
         }
-        if ($one_char or !defined $next or $input =~ m{\Q$/\E$}) {
+        if ($onechar or !defined $next or $input =~ m{\Q$/\E$}) {
             chomp $input unless $flags->{-line};
             if ($require and my $mesg = $require->($input)) {
                 print {$OUT} "\r", " " x 79, "\r", sprintf($mesg, @prompt);
@@ -446,7 +459,7 @@ sub get_input {
             else {
                 ReadMode 'restore', $IN;
                 print {$OUT} $newlines;
-                return $one_char ? substr($input, 0, 1) : $input;
+                return $onechar ? substr($input, 0, 1) : $input;
             }
         }
     }
@@ -546,12 +559,14 @@ sub _menu {
     print {$OUT} @prompt if -t $IN;
     while (1) {
         my $response =
-          get_input($IN, $OUT, { %$flags, -nlstr => "", -require => undef },
-            @prompt);
+          get_input($IN, $OUT, { %$flags, -escape => 1, -nlstr => "", -require => undef },
+                    @prompt);
         chomp $response;
         if (-t $IN and defined $response) {
-                
-            if (length $response > 1 || ($response lt 'a' || $response gt $max_char) ) {
+            if (length $response == 1 && $response eq "\e") {
+                return $response;
+            }
+            elsif (length $response > 1 || ($response lt 'a' || $response gt $max_char) ) {
                 if ($response ne $flags->{-default}) {
                     print {$OUT} "\r", " " x 79, "\r", $prompt_range;
                     next;
@@ -566,8 +581,12 @@ sub _menu {
         print {$OUT} "\n";
         my $selection = $data[ord($response)-ord('a')];
         $response = defined $response ? $val_for->($selection) : $response;
-        if (defined $response && ref $response eq 'HASH') {
-            $response = _menu($IN, $OUT, {%{$flags},-menu=>$response}, "$selection: ");
+        if (defined $response && ref($response) =~ m/\A(?:HASH|ARRAY)\z/xms ) {
+            $response = _menu($IN, $OUT, {%{$flags}, -menu=>$response}, "$selection: ");
+            if (defined $response && $response eq "\e") {
+                print {$OUT} "\n", @prompt if -t $IN;
+                next;
+            }
         }
         return _tidy($response);
     }
@@ -612,7 +631,7 @@ IO::Prompt - Interactively prompt for user input
 
 =head1 VERSION
 
-This document describes IO::Prompt version 0.99.2
+This document describes IO::Prompt version 0.99.4
 
 =head1 SYNOPSIS
 
@@ -682,12 +701,15 @@ prompt itself.
  -w     -okay_if       <str|rgx>    Fail unless input matches <str|regex>
 
  -m     -menu          <list|hash>  Show the data specified as a menu 
-                                    and allow one to be selected
+                                    and allow one to be selected. Enter
+                                    an <ESC> to back up one level.
 
  -1     -one_char                   Return immediately after first char typed
 
- -w     -wipe                       Clear screen before prompt
- -f     -wipefirst                  Clear screen before first prompt only
+ -x     -escape                     Pressing <ESC> returns "\e" immediately
+
+ -c     -clear                      Clear screen before prompt
+ -f     -clear_first                Clear screen before first prompt only
 
  -a     -argv                       Load @ARGV from input if @ARGV empty
 
@@ -696,12 +718,15 @@ prompt itself.
  -t     -tty                        Prompt to terminal no matter what
 
  -y     -yes                        Return true if [yY] entered, false otherwise
- -yn    -yesno                      Return true if [yY], false if [nN]
+ -yn    -yes_no                     Return true if [yY], false if [nN]
  -Y     -Yes                        Return true if 'Y' entered, false otherwise
- -YN    -YesNo                      Return true if 'Y', false if 'N'
+ -YN    -Yes_No                     Return true if 'Y', false if 'N'
 
  -num   -number                     Accept only valid numbers as input
  -i     -integer                    Accept only valid integers as input
+
+Note that the underscores between words in flags like C<-one_char> and
+C<-yes_no> are optional.
 
 Flags can be "cuddled". For example:
 
@@ -772,6 +797,8 @@ The C<-menu> option requires an argument that is either an array:
 or a hash:
 
     prompt -menu=>{yes=>1, no=>0, maybe=>0.5};
+
+or a hash of hashes (of hashes (of array))
 
 =item C<< Too many -menu items >>
 

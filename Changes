@@ -13,3 +13,25 @@ Revision history for IO-Prompt
 0.99.2  Mon Aug  1 23:55:45 2005
 
     - Fixed setting of $_ using Want.pm (thanks Robin!)
+
+
+0.99.3  Mon Aug  1 23:56:57 2005
+
+
+
+0.99.4  Fri Feb 17 15:59:21 2006
+
+    - Fixed -menu to handle nested arrays as well as nested hashes
+
+    - Removed spurious -wipe and -wipefirst options, by 
+      renaming them -clear and -clearfirst
+
+    - Fixed cuddling behaviour
+
+    - Added special <esc> handling
+      (principally to allow navigation back up a menu level under -menu)
+
+    - Added dependencies to Build.pl and Makefile.PL (thanks to the many
+      people who reported this oversight)
+
+    - Made all underscores in flags optional

@@ -25,7 +25,7 @@ $parser->opts(
     'max_null_count'      => 0,
 );
 
-while (prompt "> ", -wipefirst) {
+while (prompt "> ", -clearfirst) {
     my $sentence = $parser->create_sentence($_);
 
     if ($sentence->num_linkages == 0) {

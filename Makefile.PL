@@ -14,6 +14,7 @@ WriteMakefile(
         'IO::Handle'    => 0,
         'Term::ReadKey' => 0,
         'POSIX' => 0,
+        'Want'  => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'IO-Prompt-*' },

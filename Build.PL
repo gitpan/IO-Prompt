@@ -13,6 +13,7 @@ my $builder = Module::Build->new(
         'IO::Handle'    => 0,
         'Term::ReadKey' => 0,
         'POSIX' => 0,
+        'Want'  => 0,
     },
     add_to_cleanup      => [ 'IO-Prompt-*' ],
 );

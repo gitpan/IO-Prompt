@@ -1,7 +1,7 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         IO-Prompt
-version:      0.99.2
+version:      v0.99.4
 version_from: lib/IO/Prompt.pm
 installdirs:  site
 requires:
@@ -10,6 +10,7 @@ requires:
     Term::ReadKey:                 0
     Test::More:                    0
     version:                       0
+    Want:                          0
 
 distribution_type: module
 generated_by: ExtUtils::MakeMaker version 6.17
