@@ -26,3 +26,4 @@ examples/tty.pl
 examples/underscore.pl
 examples/while_until.pl
 examples/yesno.pl
+t/01.dependencies.t

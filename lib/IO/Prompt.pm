@@ -3,7 +3,7 @@
 
 package IO::Prompt;
 
-use version; $VERSION = qv('0.99.4');
+our $VERSION = '0.996';
 
 use strict;
 use Carp;
@@ -41,8 +41,8 @@ our %flags_arg = (
 );
 
 our %flags_alias = (
-    '-okayif' => '-while',
-    '-failif' => '-until',
+    '-okayif'  => '-while',   '-okay_if' => '-while',
+    '-failif'  => '-until',   '-fail_if' => '-until',
 );
 
 our %flags_noarg = (
@@ -50,6 +50,7 @@ our %flags_noarg = (
     n   => 'no',
     i   => 'integer',
     num => 'number',
+    raw => 'raw_input',
     1   => 'onechar',
     c   => 'clear',
     f   => 'clearfirst',
@@ -78,14 +79,14 @@ my %nopat = (
 );
 
 my %num_pat = (
-    integer => qr{[+-]? \d+ (?:[Ee][+-]?\d+ )?}x,
+    integer => qr{[+-]? \d+ (?:[Ee]+?\d+ )?}x,
     number  => qr{[+-]? (?:\d+[.]?\d* | [.]\d+) (?:[Ee][+-]?\d+)? }x,
 );
 
 sub _get_prompt (\%@) {
     my ($flags, @data) = @_;
     my ($OUT);
-    @data = map { $flags_alias{$_} || $_ } @data;
+    @data = map { $flags_alias{$_} || defined($_) ? $_ : "" } @data;
     for (my $i = 0 ; $i < @data ; $i++) {
         local *_ = \($data[$i]);
         if (ref eq 'HASH') {
@@ -110,6 +111,9 @@ sub _get_prompt (\%@) {
             }
             elsif (s/^-escape|-x/-/i) {
                 $flags->{-escape} = 1;
+            }
+            elsif (s/^-raw_?(?:input)?/-/i) {
+                $flags->{-raw_input} = 1;
             }
             elsif (s/^-number|-num/-/i) {
                 $flags->{-number} = 'number';
@@ -169,6 +173,8 @@ my $prompt_req = "(The value entered is not acceptable) ";
 
 sub prompt {
     my $caller = caller;
+
+    local $\ = q{};   # Make sure no funny business on print statements
 
     my %flags;
     my ($OUT, @prompt) = _get_prompt(%flags, @_);
@@ -230,33 +236,34 @@ sub _tidy {
       && (!$flags{ -while } || $input =~ $flags{ -while })
       && (!$flags{ -until } || $input !~ $flags{ -until });
     print {$RECORD} $input, "\n" if $success && $RECORD;
+    return "$input" if $flags{-raw_input};
     return bless {
         value   => $input,
         success => $success,
         set_val => $flags{ -set_underscore },
-        context => (caller(1))[2],
       },
       'IO::Prompt::ReturnVal';
 }
 
 sub _success {
-    my ($val, $no_set) = @_;
+    my ($val, $no_set, $raw) = @_;
     print {$RECORD} $val, "\n" if $val && $RECORD;
+    return "$val" if $raw;
     return bless {
         value   => $val,
         success => 1,
         set_val => !$no_set,
-        context => (caller(1))[2],
       },
       'IO::Prompt::ReturnVal';
 }
 
 sub _failure {
+    my ($val, $raw) = @_;
+    return "$val" if $raw;
     return bless {
-        value   => $_[0],
+        value   => $val,
         success => 0,
         set_val => 0,
-        context => (caller(1))[2],
       },
       'IO::Prompt::ReturnVal';
 }
@@ -475,17 +482,16 @@ sub _yesno {
         $yesprompt && $noprompt ? "'$yesprompt' or '$noprompt'"
       : $yesprompt ? "'$yesprompt' for yes"
       : "'$noprompt' for no";
+    my $raw = $flags->{-raw_input};
     print {$OUT} @prompt if -t $IN;
     while (1) {
         my $response =
           get_input($IN, $OUT, { %$flags, -nlstr => "" }, @prompt);
         chomp $response unless $flags->{-line};
-        print {$OUT} "\n" and return _success($response, 'no_set')
-          if defined $response
-          and $response =~ /$yes/;
-        print {$OUT} "\n" and return _failure($response)
-          if !defined $response
-          or $response =~ /$no/;
+        print {$OUT} "\n" and return _success($response, 'no_set', $raw)
+            if defined $response and $response =~ /$yes/;
+        print {$OUT} "\n" and return _failure($response, $raw)
+          if !defined $response or $response =~ /$no/;
         print {$OUT} "\r", " " x 79, "\r", @prompt,
           "(Please answer $prompt2) "
           if -t $IN;
@@ -631,7 +637,7 @@ IO::Prompt - Interactively prompt for user input
 
 =head1 VERSION
 
-This document describes IO::Prompt version 0.99.4
+This document describes IO::Prompt version 0.996
 
 =head1 SYNOPSIS
 
@@ -695,10 +701,10 @@ prompt itself.
                                      - Hashes must return true for input as key
 
  -u     -until         <str|rgx>    Fail if input matches <str|regex>
- -u     -fail_if       <str|rgx>    Fail if input matches <str|regex>
+        -fail_if               
 
  -w     -while         <str|rgx>    Fail unless input matches <str|regex>
- -w     -okay_if       <str|rgx>    Fail unless input matches <str|regex>
+        -okay_if       
 
  -m     -menu          <list|hash>  Show the data specified as a menu 
                                     and allow one to be selected. Enter
@@ -707,6 +713,9 @@ prompt itself.
  -1     -one_char                   Return immediately after first char typed
 
  -x     -escape                     Pressing <ESC> returns "\e" immediately
+
+ -raw   -raw_input                  Return only the string that was input
+                                    (turns off context-sensitive features)
 
  -c     -clear                      Clear screen before prompt
  -f     -clear_first                Clear screen before first prompt only
@@ -841,7 +850,8 @@ POSIX
 
 =head1 INCOMPATIBILITIES
 
-None reported.
+The module requires a /dev/tty device be available. It is therefore
+incompatible with any system that doesn't provide such a device.
 
 
 =head1 BUGS AND LIMITATIONS
@@ -851,6 +861,22 @@ No bugs have been reported.
 Please report any bugs or feature requests to
 C<bug-io-prompt@rt.cpan.org>, or through the web interface at
 L<http://rt.cpan.org>.
+
+
+=head1 FAQ
+
+This is a collection of things that might help.  Please send your
+questions that are not answered here to Damian Conway
+C<< <DCONWAY@cpan.org> >>
+
+=head2 Can I use this module with ActivePerl on Windows?
+
+Up to now, the answer was 'No', but this has changed.
+
+You still cannot use ActivePerl, but if you use the Cygwin environment
+(http://sources.redhat.com), which brings its own perl, and have
+the latest IO::Tty (v0.05 or later) installed, it should work (feedback
+appreciated). 
 
 
 =head1 THANKS

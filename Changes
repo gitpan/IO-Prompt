@@ -35,3 +35,29 @@ Revision history for IO-Prompt
       people who reported this oversight)
 
     - Made all underscores in flags optional
+
+
+0.99.5  Tue Sep  5 14:48:40 2006
+
+    - Fixed underscore bug in -failif and -okayif (thanks Uwe)
+
+    - Added -raw option (thanks Uwe)
+
+    - Remove spurious context attribute from return value objects
+
+    - Localized $\ within prompt() to prevent bad
+      input echoing (thanks Smylers)
+
+    - Disallowed negative exponents in -integer values (thanks Smylers)
+
+    - Documented incompatibility with systems not having /dev/tty
+      (thanks Mischa)
+
+
+0.996  Sun Jan 10 20:20:24 2010
+
+    - Added dependency check and FAQ entry for /dev/tty (thanks Miller)
+
+    - Removed spurious warning for undefined inputs
+
+    - Changed versioning system
