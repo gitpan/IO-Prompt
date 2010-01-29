@@ -1,4 +1,4 @@
-IO::Prompt version 0.996
+IO::Prompt version 0.997
 
 By default, this module exports a single function: prompt().  It prompts the
 user to enter some input, and returns an object that represents the user input.

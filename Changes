@@ -61,3 +61,9 @@ Revision history for IO-Prompt
     - Removed spurious warning for undefined inputs
 
     - Changed versioning system
+
+
+0.997  Sat Jan 30 07:17:07 2010
+
+    - Removed another spurious warning for undefined inputs
+    

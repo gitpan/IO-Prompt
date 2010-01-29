@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                IO-Prompt
-version:             0.996
+version:             0.997
 abstract:            Interactively prompt for user input
 license:             ~
 author:              

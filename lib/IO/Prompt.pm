@@ -1,9 +1,6 @@
-#       get_input
-#       hand_print
-
 package IO::Prompt;
 
-our $VERSION = '0.996';
+our $VERSION = '0.997';
 
 use strict;
 use Carp;
@@ -88,7 +85,7 @@ sub _get_prompt (\%@) {
     my ($OUT);
     @data = map { $flags_alias{$_} || defined($_) ? $_ : "" } @data;
     for (my $i = 0 ; $i < @data ; $i++) {
-        local *_ = \($data[$i]);
+        local *_ = \$data[$i];
         if (ref eq 'HASH') {
             splice @data, $i + 1, 0, %$_;
         }
@@ -130,7 +127,7 @@ sub _get_prompt (\%@) {
                                                        || !defined $data[$i+1];
                 s/^-($flag_with_arg)/-/;
                 $flags->{ -$flags_arg{$1} } = $data[$i+1];
-                undef $data[$i+1];
+                undef $data[$i++];
             }
             elsif (s/^-($flag_no_arg)/-/) {
                 $flags->{ -$flags_noarg{$1} } = 1;
@@ -637,7 +634,7 @@ IO::Prompt - Interactively prompt for user input
 
 =head1 VERSION
 
-This document describes IO::Prompt version 0.996
+This document describes IO::Prompt version 0.997
 
 =head1 SYNOPSIS
 
