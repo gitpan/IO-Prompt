@@ -67,3 +67,10 @@ Revision history for IO-Prompt
 
     - Removed another spurious warning for undefined inputs
     
+
+
+0.997001  Sat Apr 24 12:00:19 2010
+
+    - More warning cleanup and also made backspaces work right at the
+      start of a line (thanks Ingmar)
+

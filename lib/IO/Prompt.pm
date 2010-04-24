@@ -1,6 +1,6 @@
 package IO::Prompt;
 
-our $VERSION = '0.997';
+our $VERSION = '0.997001';
 
 use strict;
 use Carp;
@@ -414,9 +414,11 @@ sub get_input {
             ReadMode 'restore', $IN;
             exit;
         }
-        elsif ($next eq $cntl{ERASE} and length $input) {
-            substr($input, -1) = "";
-            print {$OUT} "\b \b";
+        elsif ($next eq $cntl{ERASE}) {
+            if (defined $input && length $input) {
+                substr($input, -1) = "";
+                print {$OUT} "\b \b";
+            }
             next;
         }
         elsif ($next eq $cntl{EOF}) {
@@ -462,7 +464,7 @@ sub get_input {
             }
             else {
                 ReadMode 'restore', $IN;
-                print {$OUT} $newlines;
+                print {$OUT} $newlines if defined $newlines;
                 return $onechar ? substr($input, 0, 1) : $input;
             }
         }
@@ -634,7 +636,7 @@ IO::Prompt - Interactively prompt for user input
 
 =head1 VERSION
 
-This document describes IO::Prompt version 0.997
+This document describes IO::Prompt version 0.997001
 
 =head1 SYNOPSIS
 
