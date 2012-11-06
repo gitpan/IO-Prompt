@@ -1,6 +1,6 @@
 package IO::Prompt;
 
-our $VERSION = '0.997001';
+our $VERSION = '0.997002';
 
 use strict;
 use Carp;
@@ -183,9 +183,10 @@ sub prompt {
         open $IN, "</dev/tty" or croak "Cannot read from terminal: $!";
     }
     else {
+        use Scalar::Util;
         no strict 'refs';
         my $ARGV = $caller . "::ARGV";
-        unless (*$ARGV->opened) {
+        unless (Scalar::Util::openhandle(*$ARGV)) {
             $$ARGV = shift(@$ARGV) || '-';
             open $ARGV or croak "Can't open $$ARGV: $!";
         }
@@ -634,9 +635,16 @@ __END__
 IO::Prompt - Interactively prompt for user input
 
 
+=head1 STATUS
+
+This module is no longer being maintained.
+
+Use the IO::Prompter module instead.
+
+
 =head1 VERSION
 
-This document describes IO::Prompt version 0.997001
+This document describes IO::Prompt version 0.997002
 
 =head1 SYNOPSIS
 

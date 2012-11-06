@@ -74,3 +74,10 @@ Revision history for IO-Prompt
     - More warning cleanup and also made backspaces work right at the
       start of a line (thanks Ingmar)
 
+
+
+0.997002  Wed Nov  7 07:50:49 2012
+
+    - Fixed ->opened bug under 5.14 (thanks GFUGI!)
+
+    - Documented unmaintained status
